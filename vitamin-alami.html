@@ -1,0 +1,921 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Bell, Info, Clock, Pill, Sun, Coffee, Moon, X, Check, Trash2, Edit3, AlertCircle } from 'lucide-react';
+
+const VitaminAlarmApp = () => {
+  const [currentView, setCurrentView] = useState('home');
+  const [vitamins, setVitamins] = useState([
+    {
+      id: 1,
+      name: '비타민 C',
+      category: '면역력',
+      timeSlot: '아침',
+      alarmTime: '08:00',
+      dosage: '1000mg',
+      taken: false,
+      info: '면역력 강화와 피부 건강에 도움을 줍니다.',
+      isCustom: false
+    },
+    {
+      id: 2,
+      name: '비타민 D',
+      category: '뼈 건강',
+      timeSlot: '아침',
+      alarmTime: '08:30',
+      dosage: '1000IU',
+      taken: true,
+      info: '뼈 건강과 칼슘 흡수를 도와줍니다.',
+      isCustom: false
+    }
+  ]);
+
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [showAlarmModal, setShowAlarmModal] = useState(false);
+  const [selectedVitaminId, setSelectedVitaminId] = useState(null);
+  const [selectedTime, setSelectedTime] = useState('08:00');
+  const [selectedVitaminForTimeSlot, setSelectedVitaminForTimeSlot] = useState('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+  
+  // 편집/커스텀 모달용 상태
+  const [editingVitamin, setEditingVitamin] = useState({
+    name: '',
+    dosage: '',
+    info: '',
+    category: '사용자 정의'
+  });
+
+  // 알람 상태
+  const [currentAlarm, setCurrentAlarm] = useState(null);
+  const [alarmAudio, setAlarmAudio] = useState(null);
+
+  const extendedCategories = [
+    { 
+      name: '면역력', 
+      items: [
+        { name: '비타민 C', dosage: '1000mg', info: '강력한 항산화제로 면역력 강화에 도움' },
+        { name: '아연', dosage: '15mg', info: '면역 세포 활성화와 상처 치유에 도움' },
+        { name: '셀레늄', dosage: '200mcg', info: '항산화 작용으로 세포 보호' },
+        { name: '에키네시아', dosage: '400mg', info: '자연 면역력 강화 허브' },
+        { name: '프로폴리스', dosage: '500mg', info: '천연 항균, 항염 효과' }
+      ]
+    },
+    { 
+      name: '뼈 건강', 
+      items: [
+        { name: '비타민 D', dosage: '1000IU', info: '칼슘 흡수율 향상으로 뼈 건강 증진' },
+        { name: '칼슘', dosage: '600mg', info: '뼈와 치아 구조의 주요 성분' },
+        { name: '마그네슘', dosage: '400mg', info: '뼈 형성과 근육 기능에 필수' },
+        { name: '비타민 K2', dosage: '100mcg', info: '칼슘을 뼈로 운반하는 역할' },
+        { name: '콜라겐', dosage: '10g', info: '뼈, 연골, 피부 구조 지원' }
+      ]
+    },
+    { 
+      name: '심혈관', 
+      items: [
+        { name: '오메가3', dosage: '1000mg', info: '혈관 건강과 뇌 기능 개선' },
+        { name: '코엔자임Q10', dosage: '100mg', info: '심장 근육 에너지 생성 지원' },
+        { name: '비타민 E', dosage: '400IU', info: '혈관 보호 항산화 작용' },
+        { name: '마그네슘', dosage: '400mg', info: '혈압 조절과 심장 리듬 안정' },
+        { name: '레드 이스트 라이스', dosage: '600mg', info: '콜레스테롤 수치 관리' }
+      ]
+    },
+    { 
+      name: '에너지', 
+      items: [
+        { name: '비타민 B복합체', dosage: '50mg', info: '에너지 대사와 신경 기능 지원' },
+        { name: '철분', dosage: '18mg', info: '산소 운반과 에너지 생성' },
+        { name: '엽산', dosage: '400mcg', info: '세포 분열과 DNA 합성' },
+        { name: '비타민 B12', dosage: '1000mcg', info: '신경 기능과 적혈구 생성' },
+        { name: '로디올라', dosage: '300mg', info: '스트레스 저항력과 피로 개선' }
+      ]
+    },
+    { 
+      name: '피부', 
+      items: [
+        { name: '콜라겐', dosage: '10g', info: '피부 탄력과 수분 공급' },
+        { name: '비오틴', dosage: '5000mcg', info: '모발, 피부, 손톱 건강' },
+        { name: '비타민 A', dosage: '5000IU', info: '피부 재생과 시력 보호' },
+        { name: '히알루론산', dosage: '150mg', info: '피부 수분 보유력 향상' },
+        { name: '글루타치온', dosage: '250mg', info: '피부 미백과 해독 작용' }
+      ]
+    },
+    { 
+      name: '소화', 
+      items: [
+        { name: '프로바이오틱스', dosage: '10억 CFU', info: '장내 유익균 증식으로 소화 개선' },
+        { name: '소화효소', dosage: '500mg', info: '음식물 분해와 영양소 흡수' },
+        { name: '글루타민', dosage: '5g', info: '장 점막 회복과 면역력 강화' },
+        { name: '생강 추출물', dosage: '250mg', info: '소화 촉진과 메스꺼움 완화' },
+        { name: '페퍼민트', dosage: '200mg', info: '소화 불량과 복부 팽만감 완화' }
+      ]
+    }
+  ];
+
+  const timeSlots = [
+    { id: 'morning', name: '아침', icon: Sun, color: 'from-yellow-400 to-orange-500' },
+    { id: 'lunch', name: '점심', icon: Coffee, color: 'from-blue-400 to-indigo-500' },
+    { id: 'evening', name: '저녁', icon: Moon, color: 'from-purple-400 to-pink-500' }
+  ];
+
+  // 알람 체크 (실제 앱에서는 백그라운드 서비스 사용)
+  useEffect(() => {
+    const checkAlarms = () => {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      const alarmVitamin = vitamins.find(vitamin => 
+        vitamin.alarmTime === currentTime && !vitamin.taken
+      );
+      
+      if (alarmVitamin && !currentAlarm) {
+        triggerAlarm(alarmVitamin);
+      }
+    };
+
+    const interval = setInterval(checkAlarms, 60000); // 1분마다 체크
+    return () => clearInterval(interval);
+  }, [vitamins, currentAlarm]);
+
+  const triggerAlarm = (vitamin) => {
+    setCurrentAlarm(vitamin);
+    setShowAlarmModal(true);
+    
+    // 알람 소리 (실제 앱에서는 네이티브 알림 사운드 사용)
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvWEcBDuO1fPQgC0FJnDC7+OWRQ0RUp3e8bllHgg+itfzzH4vBSF4w+/glUcDEJeUjYyMj5+PjYyNnIyMjZ');
+    audio.loop = true;
+    audio.play().catch(() => {
+      // 브라우저에서 자동 재생이 차단된 경우
+      console.log('오디오 재생이 차단되었습니다.');
+    });
+    setAlarmAudio(audio);
+  };
+
+  const dismissAlarm = () => {
+    if (alarmAudio) {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+      setAlarmAudio(null);
+    }
+    setCurrentAlarm(null);
+    setShowAlarmModal(false);
+  };
+
+  const toggleVitaminTaken = (id) => {
+    setVitamins(vitamins.map(vitamin => 
+      vitamin.id === id ? { ...vitamin, taken: !vitamin.taken } : vitamin
+    ));
+  };
+
+  const openTimeModal = (vitaminId, currentTime) => {
+    setSelectedVitaminId(vitaminId);
+    setSelectedTime(currentTime);
+    setShowTimeModal(true);
+  };
+
+  const confirmTimeChange = () => {
+    setVitamins(vitamins.map(vitamin => 
+      vitamin.id === selectedVitaminId 
+        ? { ...vitamin, alarmTime: selectedTime }
+        : vitamin
+    ));
+    setShowTimeModal(false);
+    setSelectedVitaminId(null);
+  };
+
+  const cancelTimeChange = () => {
+    setShowTimeModal(false);
+    setSelectedVitaminId(null);
+  };
+
+  const openEditModal = (item) => {
+    setEditingVitamin({
+      name: item.name,
+      dosage: item.dosage,
+      info: item.info,
+      category: extendedCategories.find(cat => 
+        cat.items.some(catItem => catItem.name === item.name)
+      )?.name || '기타'
+    });
+    setSelectedVitaminForTimeSlot(item.name);
+    setShowEditModal(true);
+  };
+
+  const openCustomModal = () => {
+    setEditingVitamin({
+      name: '',
+      dosage: '',
+      info: '',
+      category: '사용자 정의'
+    });
+    setShowCustomModal(true);
+  };
+
+  const confirmEdit = () => {
+    setSelectedVitaminForTimeSlot(editingVitamin.name);
+    setShowEditModal(false);
+    setShowTimeSlotModal(true);
+  };
+
+  const confirmCustom = () => {
+    if (editingVitamin.name.trim()) {
+      setSelectedVitaminForTimeSlot(editingVitamin.name);
+      setShowCustomModal(false);
+      setShowTimeSlotModal(true);
+    }
+  };
+
+  const cancelEdit = () => {
+    setShowEditModal(false);
+    setEditingVitamin({ name: '', dosage: '', info: '', category: '사용자 정의' });
+  };
+
+  const cancelCustom = () => {
+    setShowCustomModal(false);
+    setEditingVitamin({ name: '', dosage: '', info: '', category: '사용자 정의' });
+  };
+
+  const openTimeSlotModal = (vitaminName) => {
+    setSelectedVitaminForTimeSlot(vitaminName);
+    setShowTimeSlotModal(true);
+  };
+
+  const confirmTimeSlotSelection = () => {
+    if (selectedTimeSlot && selectedVitaminForTimeSlot) {
+      let vitaminInfo;
+      
+      if (editingVitamin.name) {
+        // 편집된 또는 커스텀 비타민
+        vitaminInfo = {
+          name: editingVitamin.name,
+          dosage: editingVitamin.dosage,
+          info: editingVitamin.info,
+          category: editingVitamin.category
+        };
+      } else {
+        // 기본 비타민
+        vitaminInfo = extendedCategories
+          .flatMap(cat => cat.items)
+          .find(item => item.name === selectedVitaminForTimeSlot);
+      }
+      
+      const newVitamin = {
+        id: Date.now(),
+        name: vitaminInfo.name,
+        category: vitaminInfo.category || editingVitamin.category,
+        timeSlot: selectedTimeSlot,
+        alarmTime: '08:00',
+        dosage: vitaminInfo.dosage,
+        taken: false,
+        info: vitaminInfo.info,
+        isCustom: editingVitamin.name !== ''
+      };
+      
+      setVitamins([...vitamins, newVitamin]);
+      setShowTimeSlotModal(false);
+      setSelectedVitaminForTimeSlot('');
+      setSelectedTimeSlot('');
+      setEditingVitamin({ name: '', dosage: '', info: '', category: '사용자 정의' });
+      setCurrentView('home');
+    }
+  };
+
+  const cancelTimeSlotSelection = () => {
+    setShowTimeSlotModal(false);
+    setSelectedVitaminForTimeSlot('');
+    setSelectedTimeSlot('');
+    setEditingVitamin({ name: '', dosage: '', info: '', category: '사용자 정의' });
+  };
+
+  const deleteVitamin = (id) => {
+    setVitamins(vitamins.filter(vitamin => vitamin.id !== id));
+  };
+
+  const renderHome = () => (
+    <div className="space-y-6">
+      <div className="text-center py-6">
+        <h1 className="text-3xl font-bold text-green-600 mb-2">비타민 알라미</h1>
+        <p className="text-gray-600">오늘의 비타민 일정을 확인하세요</p>
+      </div>
+
+      <div className="bg-gradient-to-r from-green-400 to-blue-500 rounded-xl p-6 text-white">
+        <h2 className="text-xl font-semibold mb-4">오늘의 복용 현황</h2>
+        <div className="flex justify-between items-center">
+          <div className="text-center">
+            <div className="text-2xl font-bold">{vitamins.filter(v => v.taken).length}</div>
+            <div className="text-sm opacity-90">복용 완료</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold">{vitamins.length}</div>
+            <div className="text-sm opacity-90">총 항목</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold">
+              {vitamins.length > 0 ? Math.round((vitamins.filter(v => v.taken).length / vitamins.length) * 100) : 0}%
+            </div>
+            <div className="text-sm opacity-90">달성률</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {timeSlots.map(slot => {
+          const timeVitamins = vitamins.filter(v => v.timeSlot === slot.name);
+          
+          if (timeVitamins.length === 0) return null;
+          
+          const IconComponent = slot.icon;
+          
+          return (
+            <div key={slot.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className={`bg-gradient-to-r ${slot.color} p-4`}>
+                <div className="flex items-center text-white">
+                  <IconComponent className="w-6 h-6 mr-3" />
+                  <h4 className="font-bold text-lg">{slot.name}</h4>
+                  <span className="ml-auto text-sm opacity-90">
+                    {timeVitamins.length}개 항목
+                  </span>
+                </div>
+              </div>
+              
+              <div className="p-4 space-y-3">
+                {timeVitamins.map((vitamin, index) => (
+                  <div 
+                    key={vitamin.id} 
+                    className={`transition-all duration-300 ease-in-out transform ${
+                      vitamin.taken 
+                        ? 'bg-green-50 border-2 border-green-200' 
+                        : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                    } rounded-lg p-4 cursor-pointer`}
+                    onClick={() => toggleVitaminTaken(vitamin.id)}
+                    style={{
+                      animationDelay: `${index * 100}ms`,
+                      animation: 'slideInUp 0.5s ease-out forwards'
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <Pill className={`w-6 h-6 transition-colors duration-300 ${
+                          vitamin.taken ? 'text-green-500' : 'text-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <div className={`font-semibold transition-colors duration-300 flex items-center ${
+                            vitamin.taken ? 'text-green-800' : 'text-gray-800'
+                          }`}>
+                            {vitamin.name}
+                            {vitamin.isCustom && (
+                              <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full">
+                                사용자 정의
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {vitamin.dosage}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openTimeModal(vitamin.id, vitamin.alarmTime);
+                          }}
+                          className="flex items-center space-x-1 px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                        >
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-600">
+                            {vitamin.alarmTime}
+                          </span>
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteVitamin(vitamin.id);
+                          }}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        
+        {vitamins.length === 0 && (
+          <div className="text-center py-12">
+            <Pill className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">
+              아직 등록된 항목이 없습니다
+            </h3>
+            <p className="text-gray-500 mb-6">
+              '추가' 탭에서 비타민이나 약을 등록해보세요
+            </p>
+            <button
+              onClick={() => setCurrentView('add')}
+              className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              항목 추가하기
+            </button>
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
+  );
+
+  const renderAddVitamin = () => (
+    <div className="space-y-6">
+      <div className="text-center py-4">
+        <h2 className="text-2xl font-bold text-gray-800">항목 추가</h2>
+        <p className="text-gray-600">비타민이나 약을 추가해주세요</p>
+      </div>
+
+      {/* 사용자 정의 추가 */}
+      <div className="bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl shadow-lg overflow-hidden">
+        <div className="p-4">
+          <h3 className="font-bold text-white text-lg mb-2">나만의 항목 추가</h3>
+          <p className="text-white opacity-90 text-sm mb-4">
+            비타민, 약, 건강보조식품 등을 직접 추가할 수 있어요
+          </p>
+          <button
+            onClick={openCustomModal}
+            className="w-full p-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all flex items-center justify-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">직접 추가하기</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 기본 비타민 카테고리 */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-800">추천 비타민</h3>
+        
+        {extendedCategories.map(category => (
+          <div key={category.name} className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-green-400 to-blue-500 p-4">
+              <h3 className="font-bold text-white text-lg">{category.name}</h3>
+              <p className="text-white opacity-90 text-sm">{category.items.length}개 항목</p>
+            </div>
+            
+            <div className="p-4 space-y-2">
+              {category.items.map(item => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group"
+                >
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-800">{item.name}</div>
+                    <div className="text-sm text-green-600 font-medium">{item.dosage}</div>
+                    <div className="text-xs text-gray-500 mt-1">{item.info}</div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
+                      title="수정하기"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => openTimeSlotModal(item.name)}
+                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors group-hover:scale-110 transform duration-200"
+                      title="바로 추가"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-green-50 rounded-xl p-6">
+        <h4 className="font-bold text-green-800 mb-3 flex items-center">
+          <Info className="w-5 h-5 mr-2" />
+          복용 가이드
+        </h4>
+        <div className="space-y-2 text-sm text-green-700">
+          <p>• <strong>아침</strong>: 지용성 비타민(A, D, E, K)은 식후 복용</p>
+          <p>• <strong>점심</strong>: 비타민 B군은 에너지 대사에 도움</p>
+          <p>• <strong>저녁</strong>: 마그네슘, 칼슘은 수면 전 복용 권장</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderInfo = () => (
+    <div className="space-y-6">
+      <div className="text-center py-4">
+        <h2 className="text-2xl font-bold text-gray-800">나의 항목</h2>
+        <p className="text-gray-600">등록된 항목 정보를 확인하세요</p>
+      </div>
+
+      {vitamins.length > 0 ? (
+        <div className="space-y-4">
+          {vitamins.map(vitamin => (
+            <div key={vitamin.id} className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h3 className="font-bold text-gray-800 text-lg">{vitamin.name}</h3>
+                    {vitamin.isCustom && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full">
+                        사용자 정의
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                      {vitamin.category}
+                    </span>
+                    <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                      {vitamin.timeSlot}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right text-sm text-gray-500">
+                  <div className="font-medium">{vitamin.dosage}</div>
+                  <div className="flex items-center mt-1">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {vitamin.alarmTime}
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                {vitamin.info}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <Info className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-600 mb-2">
+            등록된 항목이 없습니다
+          </h3>
+          <p className="text-gray-500">
+            먼저 비타민이나 약을 추가해주세요
+          </p>
+        </div>
+      )}
+
+      <div className="bg-yellow-50 rounded-xl p-6">
+        <h4 className="font-bold text-yellow-800 mb-3">⚠️ 주의사항</h4>
+        <ul className="text-sm text-yellow-700 space-y-2">
+          <li>• 비타민 과다 복용은 부작용을 일으킬 수 있습니다</li>
+          <li>• 복용 전 의사나 약사와 상담하세요</li>
+          <li>• 다른 약물과의 상호작용을 확인하세요</li>
+          <li>• 임신, 수유 중인 경우 전문의와 상담 필수</li>
+        </ul>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-md mx-auto bg-gray-100 min-h-screen relative">
+      <div className="p-4 pb-20">
+        {currentView === 'home' && renderHome()}
+        {currentView === 'add' && renderAddVitamin()}
+        {currentView === 'info' && renderInfo()}
+      </div>
+
+      {/* 시간 설정 모달 */}
+      {showTimeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">알람 시간 설정</h3>
+            
+            <div className="mb-6">
+              <input
+                type="time"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="w-full p-4 text-2xl text-center border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelTimeChange}
+                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmTimeChange}
+                className="flex-1 py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 항목 편집 모달 */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">항목 편집</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                <input
+                  type="text"
+                  value={editingVitamin.name}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, name: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                  placeholder="비타민 또는 약 이름"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">함량</label>
+                <input
+                  type="text"
+                  value={editingVitamin.dosage}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, dosage: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                  placeholder="예: 1000mg, 1정, 1회"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                <textarea
+                  value={editingVitamin.info}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, info: e.target.value})}
+                  rows={3}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none resize-none"
+                  placeholder="효능이나 복용 목적을 입력하세요"
+                />
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={cancelEdit}
+                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmEdit}
+                disabled={!editingVitamin.name.trim()}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+                  editingVitamin.name.trim()
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 사용자 정의 추가 모달 */}
+      {showCustomModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">직접 추가하기</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center">
+              비타민, 약, 건강보조식품 등을 자유롭게 추가하세요
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">이름 *</label>
+                <input
+                  type="text"
+                  value={editingVitamin.name}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, name: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                  placeholder="예: 종합비타민, 혈압약, 오메가3"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">함량</label>
+                <input
+                  type="text"
+                  value={editingVitamin.dosage}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, dosage: e.target.value})}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+                  placeholder="예: 500mg, 1정, 1캡슐, 1회"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                <textarea
+                  value={editingVitamin.info}
+                  onChange={(e) => setEditingVitamin({...editingVitamin, info: e.target.value})}
+                  rows={3}
+                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none resize-none"
+                  placeholder="효능, 복용 목적, 주의사항 등을 입력하세요"
+                />
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={cancelCustom}
+                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmCustom}
+                disabled={!editingVitamin.name.trim()}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+                  editingVitamin.name.trim()
+                    ? 'bg-purple-500 text-white hover:bg-purple-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 시간대 선택 모달 */}
+      {showTimeSlotModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold text-gray-800 mb-2 text-center">시간대 선택</h3>
+            <p className="text-sm text-gray-600 mb-6 text-center">{selectedVitaminForTimeSlot}</p>
+            
+            <div className="space-y-3 mb-6">
+              {timeSlots.map(slot => {
+                const IconComponent = slot.icon;
+                return (
+                  <button
+                    key={slot.id}
+                    onClick={() => setSelectedTimeSlot(slot.name)}
+                    className={`w-full p-4 rounded-lg border-2 transition-all flex items-center ${
+                      selectedTimeSlot === slot.name
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <IconComponent className={`w-6 h-6 mr-3 ${
+                      selectedTimeSlot === slot.name ? 'text-green-600' : 'text-gray-500'
+                    }`} />
+                    <span className={`font-medium ${
+                      selectedTimeSlot === slot.name ? 'text-green-800' : 'text-gray-700'
+                    }`}>
+                      {slot.name}
+                    </span>
+                    {selectedTimeSlot === slot.name && (
+                      <Check className="w-5 h-5 text-green-600 ml-auto" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelTimeSlotSelection}
+                className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmTimeSlotSelection}
+                disabled={!selectedTimeSlot}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+                  selectedTimeSlot
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 알람 모달 */}
+      {showAlarmModal && currentAlarm && (
+        <div className="fixed inset-0 bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center shadow-2xl transform animate-pulse">
+            {/* 애니메이션 링 */}
+            <div className="relative mb-6">
+              <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center animate-bounce">
+                <Pill className="w-12 h-12 text-white" />
+              </div>
+              <div className="absolute inset-0 w-24 h-24 mx-auto border-4 border-green-300 rounded-full animate-ping"></div>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              복용 시간이에요! 💊
+            </h2>
+            
+            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <h3 className="text-xl font-semibold text-green-600 mb-1">
+                {currentAlarm.name}
+              </h3>
+              <p className="text-gray-600 text-sm mb-2">
+                {currentAlarm.dosage}
+              </p>
+              <div className="flex items-center justify-center text-blue-600">
+                <Clock className="w-4 h-4 mr-1" />
+                <span className="font-medium">{currentAlarm.alarmTime}</span>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-50 rounded-lg p-3 mb-6">
+              <p className="text-sm text-yellow-700">
+                💡 {currentAlarm.info}
+              </p>
+            </div>
+            
+            <button
+              onClick={dismissAlarm}
+              className="w-full py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white text-lg font-bold rounded-xl hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105 shadow-lg"
+            >
+              확인
+            </button>
+            
+            <div className="mt-4 flex items-center justify-center text-gray-500 text-sm">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              <span>건강한 하루 되세요!</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 shadow-lg">
+        <div className="flex justify-around py-2">
+          <button
+            onClick={() => setCurrentView('home')}
+            className={`flex flex-col items-center p-3 rounded-lg transition-all duration-200 ${
+              currentView === 'home' 
+                ? 'text-green-600 bg-green-50 scale-105' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Bell className="w-6 h-6" />
+            <span className="text-xs mt-1 font-medium">홈</span>
+          </button>
+          
+          <button
+            onClick={() => setCurrentView('add')}
+            className={`flex flex-col items-center p-3 rounded-lg transition-all duration-200 ${
+              currentView === 'add' 
+                ? 'text-green-600 bg-green-50 scale-105' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Plus className="w-6 h-6" />
+            <span className="text-xs mt-1 font-medium">추가</span>
+          </button>
+          
+          <button
+            onClick={() => setCurrentView('info')}
+            className={`flex flex-col items-center p-3 rounded-lg transition-all duration-200 ${
+              currentView === 'info' 
+                ? 'text-green-600 bg-green-50 scale-105' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Info className="w-6 h-6" />
+            <span className="text-xs mt-1 font-medium">정보</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VitaminAlarmApp;
